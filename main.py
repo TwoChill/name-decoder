@@ -71,8 +71,8 @@ class MainScreen(QWidget):
         self.about_btn = QPushButton('About Numerology')
         self.about_btn.setFixedHeight(36)
         self.about_btn.setStyleSheet(
-            "QPushButton { background-color: transparent; color: #888; border: 1px solid #555; }"
-            "QPushButton:hover { color: #ccc; border-color: #888; }"
+            "QPushButton { background-color: transparent; color: #888888; border: 1px solid #555555; }"
+            "QPushButton:hover { color: #bbbbbb; border-color: #888888; }"
         )
         self.about_btn.clicked.connect(on_about)
 
@@ -141,7 +141,7 @@ class NameDecoderApp(QWidget):
     def on_about(self):
         video_path = os.path.join(BASE_DIR, "0.mp4")
         if not os.path.exists(video_path):
-            QMessageBox.warning(self, "Missing video", "Numerology introduction video not found.")
+            QMessageBox.warning(self, "Missing video", "Numerology explanation video not found.")
             return
         self.stack.setCurrentWidget(self.video_screen)
         self.video_screen.play(video_path)
