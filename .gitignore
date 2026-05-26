@@ -1,0 +1,13 @@
+# Python
+__pycache__/
+*.pyc
+
+# Local virtual environment (desktop run)
+.venv/
+
+# Buildozer / Android build output
+.buildozer/
+bin/
+
+# Shadowcast story notes
+for_shadowcast.md

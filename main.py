@@ -27,7 +27,9 @@ def _check_requirements():
         sys.exit(1)
 
 
-_check_requirements()
+# On Android the app is packaged by Buildozer (no pip), and input() would hang — skip the check there.
+if not hasattr(sys, "getandroidapilevel"):
+    _check_requirements()
 
 
 import os
@@ -41,7 +43,7 @@ from kivy.uix.boxlayout import BoxLayout
 from kivy.animation import Animation
 from kivy.uix.videoplayer import VideoPlayer
 from kivy.clock import Clock
-from moviepy.editor import VideoFileClip
+from kivy.utils import platform
 
 # Install ffpyplayer to play videos.
 os.environ["KIVY_VIDEO"] = "ffpyplayer"
@@ -95,30 +97,33 @@ class NameDecoder(App):
         video_layout = BoxLayout(orientation='vertical')
 
         video_filename = f"{self.calculate_number(self.input_box.text)}.mp4"
-        video_path = os.path.join(os.path.dirname(__file__), video_filename)
+        video_path = os.path.join(os.path.dirname(__file__), "videos", video_filename)
         if os.path.exists(video_path):
             video_player = VideoPlayer(source=video_path, state='play')
+            self._finished = False
 
-            def stop_video(dt):
+            def finish_video(*_):
+                if self._finished:
+                    return
+                self._finished = True
+                Clock.unschedule(check_end)
                 video_player.state = 'stop'
-                self.return_to_previous_screen()
+                if platform == 'android':
+                    self.return_to_previous_screen()
+                else:
+                    self.stop()
 
-            def get_video_duration(file_path):
-                try:
-                    clip = VideoFileClip(file_path)
-                    duration = clip.duration
-                    clip.close()
-                    return duration
-                except Exception as e:
-                    print(f"Error: {e}")
-                    return None
+            def check_end(_dt):
+                dur = video_player.duration
+                if dur and dur > 0 and video_player.position >= dur - 0.3:
+                    finish_video()
 
-            Clock.schedule_once(stop_video, get_video_duration(video_path))
+            Clock.schedule_interval(check_end, 0.25)
 
             video_layout.add_widget(video_player)
             self.window.add_widget(video_layout)
         else:
-            not_found_video_path = os.path.join(os.path.dirname(__file__), "not_found.mp4")
+            not_found_video_path = os.path.join(os.path.dirname(__file__), "videos", "not_found.mp4")
             if os.path.exists(not_found_video_path):
                 video_player = VideoPlayer(source=not_found_video_path, state='play')
                 video_layout.add_widget(video_player)
