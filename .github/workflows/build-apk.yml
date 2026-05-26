@@ -46,6 +46,13 @@ jobs:
           restore-keys: |
             buildozer-${{ runner.os }}-
 
+      - name: Raise Gradle heap (large video assets OOM the default heap)
+        run: |
+          mkdir -p ~/.gradle
+          # ~/.gradle/gradle.properties takes precedence over p4a's generated project
+          # gradle.properties, so this survives p4a re-rendering the dist.
+          printf 'org.gradle.jvmargs=-Xmx4096m\n' >> ~/.gradle/gradle.properties
+
       - name: Build debug APK
         run: |
           export BUILDOZER_WARN_ON_ROOT=0
