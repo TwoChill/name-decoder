@@ -1,7 +1,13 @@
 import importlib.metadata
+import os
 import pathlib
 import re
 import sys
+import traceback
+
+# Kivy picks its video provider the first time kivy.core.video is imported, so
+# this has to be set before any kivy import below — not after them.
+os.environ["KIVY_VIDEO"] = "ffpyplayer"
 
 
 def _check_requirements():
@@ -32,7 +38,6 @@ if not hasattr(sys, "getandroidapilevel"):
     _check_requirements()
 
 
-import os
 from kivy.app import App
 from kivy.uix.gridlayout import GridLayout
 from kivy.uix.image import Image
@@ -41,12 +46,13 @@ from kivy.uix.textinput import TextInput
 from kivy.uix.button import Button
 from kivy.uix.boxlayout import BoxLayout
 from kivy.animation import Animation
+from kivy.uix.video import Video
 from kivy.uix.videoplayer import VideoPlayer
 from kivy.clock import Clock
 from kivy.utils import platform
+from kivy.logger import Logger
 
-# Install ffpyplayer to play videos.
-os.environ["KIVY_VIDEO"] = "ffpyplayer"
+APP_DIR = os.path.dirname(os.path.abspath(__file__))
 LOGO = '3.png'
 
 class NameDecoder(App):
@@ -95,11 +101,27 @@ class NameDecoder(App):
         self.window.clear_widgets()
 
         video_layout = BoxLayout(orientation='vertical')
+        self.window.add_widget(video_layout)
 
         video_filename = f"{self.calculate_number(self.input_box.text)}.mp4"
-        video_path = os.path.join(os.path.dirname(__file__), "videos", video_filename)
-        if os.path.exists(video_path):
-            video_player = VideoPlayer(source=video_path, state='play')
+        video_path = os.path.join(APP_DIR, "videos", video_filename)
+        if not os.path.exists(video_path):
+            fallback = os.path.join(APP_DIR, "videos", "not_found.mp4")
+            video_path = fallback if os.path.exists(fallback) else None
+
+        if video_path is None:
+            video_layout.add_widget(Label(text=f"Video '{video_filename}' not found."))
+            print(f"Video '{video_filename}' not found.")
+            return
+
+        # The heavyweight VideoPlayer (controls + thumbnail) is unreliable on Android;
+        # the plain Video widget is the dependable front-end to the same provider.
+        # Desktop keeps VideoPlayer so its behaviour is unchanged.
+        try:
+            if platform == 'android':
+                video_player = Video(source=video_path, state='play', allow_stretch=True)
+            else:
+                video_player = VideoPlayer(source=video_path, state='play')
             self._finished = False
 
             def finish_video(*_):
@@ -118,20 +140,23 @@ class NameDecoder(App):
                 if dur and dur > 0 and video_player.position >= dur - 0.3:
                     finish_video()
 
-            Clock.schedule_interval(check_end, 0.25)
+            def watchdog(_dt):
+                # Nothing decoding after the grace period: show why instead of a black screen.
+                if not self._finished and not (video_player.duration and video_player.duration > 0):
+                    self._show_error(video_layout,
+                                     f"Video did not start.\nstate={video_player.state}\n{video_path}")
 
+            Clock.schedule_interval(check_end, 0.25)
+            Clock.schedule_once(watchdog, 8)
             video_layout.add_widget(video_player)
-            self.window.add_widget(video_layout)
-        else:
-            not_found_video_path = os.path.join(os.path.dirname(__file__), "videos", "not_found.mp4")
-            if os.path.exists(not_found_video_path):
-                video_player = VideoPlayer(source=not_found_video_path, state='play')
-                video_layout.add_widget(video_player)
-            else:
-                label = Label(text=f"Video '{video_filename}' not found.")
-                video_layout.add_widget(label)
-                self.window.add_widget(video_layout)
-                print(f"Video '{video_filename}' not found.")
+        except Exception:
+            Logger.exception("NameDecoder: video setup failed")
+            self._show_error(video_layout, traceback.format_exc())
+
+    def _show_error(self, layout, message):
+        label = Label(text=message, halign='left', valign='top')
+        label.bind(size=lambda widget, *_: setattr(widget, 'text_size', widget.size))
+        layout.add_widget(label)
 
     def calculate_number(self, name):
         name = name.upper()
