@@ -37,6 +37,11 @@ android.enable_androidx = True
 # (bool) allow backup
 android.allow_backup = True
 
+# (str) python-for-android branch/tag to use.
+# Pinned to a release whose FFmpeg recipe (4.3.1) still ships libavcodec/avfft.h.
+# Current p4a builds FFmpeg 8, which removed avfft.h, breaking the ffpyplayer compile.
+p4a.branch = v2024.01.21
+
 [buildozer]
 
 # (int) Log level (0 = error only, 1 = info, 2 = debug (with command output))
