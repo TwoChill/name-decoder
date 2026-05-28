@@ -65,9 +65,9 @@ LOGO = '3.png'
 
 class NameDecoder(App):
     def build(self):
-        # Pan the layout up when the soft keyboard opens so it never covers the
-        # name field (Android); no-op on desktop.
-        Window.softinput_mode = 'below_target'
+        # Pan the whole view up by the keyboard height when the soft keyboard
+        # opens, so it never covers the name field (Android); no-op on desktop.
+        Window.softinput_mode = 'pan'
         self.window = GridLayout()
         self.window.cols = 1
         self.window.size_hint = (0.60, 0.70)
