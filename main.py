@@ -67,7 +67,12 @@ class NameDecoder(App):
     def build(self):
         self.window = GridLayout()
         self.window.cols = 1
-        self.window.size_hint = (0.60, 0.70)
+        if platform == 'android':
+            # Slimmer, shorter form on phones so the name/Convert boxes aren't
+            # chunky and the whole thing (logo included) clears the keyboard.
+            self.window.size_hint = (0.45, 0.5)
+        else:
+            self.window.size_hint = (0.60, 0.70)
         self.window.pos_hint = {'center_x': 0.5, 'center_y': 0.5}
         return self.window
 
@@ -179,8 +184,9 @@ class NameDecoder(App):
 
     def _shift_for_keyboard(self, _instance, focused):
         # Kivy can't read the soft-keyboard height on this device, so softinput_mode
-        # is a no-op; lift the centered layout while the field is focused instead.
-        self.window.pos_hint = {'center_x': 0.5, 'center_y': 0.85 if focused else 0.5}
+        # is a no-op; lift the compact layout while the field is focused instead.
+        # 0.73 keeps the whole form (logo included) on-screen and above the keyboard.
+        self.window.pos_hint = {'center_x': 0.5, 'center_y': 0.73 if focused else 0.5}
 
     def calculate_number(self, name):
         name = name.upper()
