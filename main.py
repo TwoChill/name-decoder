@@ -9,6 +9,13 @@ import traceback
 # this has to be set before any kivy import below — not after them.
 os.environ["KIVY_VIDEO"] = "ffpyplayer"
 
+# SDL2's AAudio backend null-derefs in aaudio_DetectBrokenPlayState during the
+# event pump the moment audio starts, hard-crashing the process on Android 13+
+# (confirmed via logcat: SIGSEGV in libSDL2 on a Galaxy S24 / Android 16). Force
+# the older, stable OpenSL ES backend on Android; irrelevant on desktop.
+if hasattr(sys, "getandroidapilevel"):
+    os.environ["SDL_AUDIODRIVER"] = "openslES"
+
 
 def _check_requirements():
     req = pathlib.Path(__file__).parent / "requirements.txt"
