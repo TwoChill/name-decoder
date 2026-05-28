@@ -58,12 +58,16 @@ from kivy.uix.videoplayer import VideoPlayer
 from kivy.clock import Clock
 from kivy.utils import platform
 from kivy.logger import Logger
+from kivy.core.window import Window
 
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
 LOGO = '3.png'
 
 class NameDecoder(App):
     def build(self):
+        # Pan the layout up when the soft keyboard opens so it never covers the
+        # name field (Android); no-op on desktop.
+        Window.softinput_mode = 'below_target'
         self.window = GridLayout()
         self.window.cols = 1
         self.window.size_hint = (0.60, 0.70)
@@ -107,9 +111,6 @@ class NameDecoder(App):
     def convert_name(self, _):
         self.window.clear_widgets()
 
-        video_layout = BoxLayout(orientation='vertical')
-        self.window.add_widget(video_layout)
-
         video_filename = f"{self.calculate_number(self.input_box.text)}.mp4"
         video_path = os.path.join(APP_DIR, "videos", video_filename)
         if not os.path.exists(video_path):
@@ -117,18 +118,24 @@ class NameDecoder(App):
             video_path = fallback if os.path.exists(fallback) else None
 
         if video_path is None:
-            video_layout.add_widget(Label(text=f"Video '{video_filename}' not found."))
+            self.window.add_widget(Label(text=f"Video '{video_filename}' not found."))
             print(f"Video '{video_filename}' not found.")
             return
 
         # The heavyweight VideoPlayer (controls + thumbnail) is unreliable on Android;
         # the plain Video widget is the dependable front-end to the same provider.
-        # Desktop keeps VideoPlayer so its behaviour is unchanged.
+        # On Android the video is added straight to the Window so it bypasses the
+        # centered 0.6x0.7 root layout and fills the screen. Desktop keeps the
+        # VideoPlayer inside the window so its behaviour is unchanged.
         try:
             if platform == 'android':
                 video_player = Video(source=video_path, state='play', allow_stretch=True)
+                Window.add_widget(video_player)
             else:
                 video_player = VideoPlayer(source=video_path, state='play')
+                video_layout = BoxLayout(orientation='vertical')
+                video_layout.add_widget(video_player)
+                self.window.add_widget(video_layout)
             self._finished = False
 
             def finish_video(*_):
@@ -138,6 +145,7 @@ class NameDecoder(App):
                 Clock.unschedule(check_end)
                 video_player.state = 'stop'
                 if platform == 'android':
+                    Window.remove_widget(video_player)
                     self.return_to_previous_screen()
                 else:
                     self.stop()
@@ -149,16 +157,18 @@ class NameDecoder(App):
 
             def watchdog(_dt):
                 # Nothing decoding after the grace period: show why instead of a black screen.
-                if not self._finished and not (video_player.duration and video_player.duration > 0):
-                    self._show_error(video_layout,
-                                     f"Video did not start.\nstate={video_player.state}\n{video_path}")
+                if self._finished or (video_player.duration and video_player.duration > 0):
+                    return
+                if platform == 'android':
+                    Window.remove_widget(video_player)
+                self._show_error(self.window,
+                                 f"Video did not start.\nstate={video_player.state}\n{video_path}")
 
             Clock.schedule_interval(check_end, 0.25)
             Clock.schedule_once(watchdog, 8)
-            video_layout.add_widget(video_player)
         except Exception:
             Logger.exception("NameDecoder: video setup failed")
-            self._show_error(video_layout, traceback.format_exc())
+            self._show_error(self.window, traceback.format_exc())
 
     def _show_error(self, layout, message):
         label = Label(text=message, halign='left', valign='top')
