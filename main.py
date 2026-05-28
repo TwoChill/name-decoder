@@ -65,9 +65,6 @@ LOGO = '3.png'
 
 class NameDecoder(App):
     def build(self):
-        # Pan the whole view up by the keyboard height when the soft keyboard
-        # opens, so it never covers the name field (Android); no-op on desktop.
-        Window.softinput_mode = 'pan'
         self.window = GridLayout()
         self.window.cols = 1
         self.window.size_hint = (0.60, 0.70)
@@ -103,12 +100,17 @@ class NameDecoder(App):
 
         self.convert_button.bind(on_release=self.convert_name)
 
+        if platform == 'android':
+            self.input_box.bind(focus=self._shift_for_keyboard)
+
         self.window.add_widget(self.input_box)
         self.window.add_widget(self.convert_button)
 
         fade_in_logo.start(self.logo)
 
     def convert_name(self, _):
+        # Drop keyboard focus so the layout shift resets before playback starts.
+        self.input_box.focus = False
         self.window.clear_widgets()
 
         video_filename = f"{self.calculate_number(self.input_box.text)}.mp4"
@@ -174,6 +176,11 @@ class NameDecoder(App):
         label = Label(text=message, halign='left', valign='top')
         label.bind(size=lambda widget, *_: setattr(widget, 'text_size', widget.size))
         layout.add_widget(label)
+
+    def _shift_for_keyboard(self, _instance, focused):
+        # Kivy can't read the soft-keyboard height on this device, so softinput_mode
+        # is a no-op; lift the centered layout while the field is focused instead.
+        self.window.pos_hint = {'center_x': 0.5, 'center_y': 0.85 if focused else 0.5}
 
     def calculate_number(self, name):
         name = name.upper()
