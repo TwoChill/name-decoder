@@ -18,6 +18,9 @@ source.include_exts = py,png,jpg,kv,atlas,mp4
 # (str) Application versioning
 version = 1.0
 
+# (str) Icon of the application (same image as the in-app startup logo)
+icon.filename = %(source.dir)s/3.png
+
 # (list) Application requirements
 # moviepy is intentionally NOT here: the app reads video duration via Kivy itself.
 requirements = python3,kivy,ffpyplayer
